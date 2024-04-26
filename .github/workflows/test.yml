@@ -80,5 +80,6 @@ jobs:
       - name: Test
         run: |
           docker run --quiet -e PERL5LIB=$GITHUB_WORKSPACE/Doit/lib -v $(pwd):$(pwd) ${{ matrix.image }} sh -c "cd $(pwd); "'
-            prove -l -j8 t
+            export HARNESS_TIMER=1 HARNESS_OPTIONS=j8
+            prove -l t
           '

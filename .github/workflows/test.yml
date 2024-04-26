@@ -53,30 +53,32 @@ jobs:
         run: |
           prove -l -j8 t
 
-#  test_in_container:
-#    name: Test with ${{ matrix.image }}
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        include:
-#          - image: perl:5.8.9-threaded-stretch
-#          - image: perl:5.10.1-buster
-#          - image: perl:5.12.5-stretch
-#          - image: perl:5.14.4-stretch
-#          - image: perl:5.16.3-buster
-#          - image: perl:5.18.4-buster
-#          - image: perl:5.22.4-stretch
-#          - image: perl:5.36.0-slim-bullseye
-#          - image: perl:5.38.0-slim-bookworm
-#          ## use debian:* images only if there's no suitable perl:* image
-#          #- image: debian:bookworm
-#          - image: ubuntu:noble
-#
-#    steps:
-#      # Note: checkout@v4 does not work with older debians (e.g.stretch), so do this step *outside* the container
-#      - uses: actions/checkout@v4
-#      - uses: eserte/Doit/.github/actions/install-doit-from-github@master
-#      - name: Test
-#        run: |
-#          docker run --quiet -v $(pwd):$(pwd) ${{ matrix.image }} sh -c "cd $(pwd); "'
-#            prove -l -j8 t
+  test_in_container:
+    name: Test with ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: perl:5.8.9-threaded-stretch
+          - image: perl:5.10.1-buster
+          - image: perl:5.12.5-stretch
+          - image: perl:5.14.4-stretch
+          - image: perl:5.16.3-buster
+          - image: perl:5.18.4-buster
+          - image: perl:5.22.4-stretch
+          - image: perl:5.36.0-slim-bullseye
+          - image: perl:5.38.0-slim-bookworm
+          ## use debian:* images only if there's no suitable perl:* image
+          #- image: debian:bookworm
+          ## ubuntu:noble not enabled, need to install full perl with prove first
+          #- image: ubuntu:noble
+
+    steps:
+      # Note: checkout@v4 does not work with older debians (e.g.stretch), so do this step *outside* the container
+      - uses: actions/checkout@v4
+      - uses: eserte/Doit/.github/actions/install-doit-from-github@master
+      - name: Test
+        run: |
+          docker run --quiet -e PERL5LIB=$GITHUB_WORKSPACE/Doit/lib -v $(pwd):$(pwd) ${{ matrix.image }} sh -c "cd $(pwd); "'
+            prove -l -j8 t
+          '

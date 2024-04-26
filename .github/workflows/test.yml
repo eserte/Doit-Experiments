@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - '*travis*'
+      - '*appveyor*'
+      - '*doozer*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test on ${{ matrix.config_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - config_name: ubuntu-20.04
+            os: ubuntu-20.04
+          - config_name: ubuntu-22.04
+            os: ubuntu-22.04
+          - config_name: ubuntu-22.04 with optional dependencies
+            os: ubuntu-22.04
+            install_optional_dependencies: true
+            dist_install_and_test: true
+            test_with_sudo: true
+          - config_name: macos-11
+            os: macos-11
+          - config_name: macos-12
+            os: macos-12
+          - config_name: windows-latest
+            os: windows-latest
+            install_optional_dependencies: true
+            dist_install_and_test: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+          show-progress: false
+      - run: |
+          apk update -q && apk add -q perl
+        if: startsWith(matrix.image, 'alpine:')
+      - run: |
+          apt-get update -q && apt-get install -qy perl
+        if: startsWith(matrix.image, 'debian:')
+      - run: |
+          dnf update --quiet -y && dnf install --quiet -y perl
+        if: startsWith(matrix.image, 'fedora:')
+      - uses: eserte/Doit/.github/actions/install-doit-from-github@master
+      - name: Test
+        run: |
+          prove -l -j8 t
+
+#  test_in_container:
+#    name: Test with ${{ matrix.image }}
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        include:
+#          - image: perl:5.8.9-threaded-stretch
+#          - image: perl:5.10.1-buster
+#          - image: perl:5.12.5-stretch
+#          - image: perl:5.14.4-stretch
+#          - image: perl:5.16.3-buster
+#          - image: perl:5.18.4-buster
+#          - image: perl:5.22.4-stretch
+#          - image: perl:5.36.0-slim-bullseye
+#          - image: perl:5.38.0-slim-bookworm
+#          ## use debian:* images only if there's no suitable perl:* image
+#          #- image: debian:bookworm
+#          - image: ubuntu:noble
+#
+#    steps:
+#      # Note: checkout@v4 does not work with older debians (e.g.stretch), so do this step *outside* the container
+#      - uses: actions/checkout@v4
+#      - uses: eserte/Doit/.github/actions/install-doit-from-github@master
+#      - name: Test
+#        run: |
+#          docker run --quiet -v $(pwd):$(pwd) ${{ matrix.image }} sh -c "cd $(pwd); "'
+#            prove -l -j8 t

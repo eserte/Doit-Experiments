@@ -30,7 +30,7 @@ sub snap_install {
         "install/refresh snap package $package",
         ensure => sub {
             my %info;
-            for my $line (split /\n/, eval { $d->info_qx({quiet=>1}, 'snap', 'info', $package) }) {
+            for my $line (do { no warnings 'uninitialized'; split /\n/, eval { $d->info_qx({quiet=>1}, 'snap', 'info', $package) } }) {
                 if ($line =~ m{^(\S+):\s*(.*)}) {
                     $info{$1} = $2;
                 }

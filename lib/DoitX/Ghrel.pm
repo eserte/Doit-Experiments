@@ -92,7 +92,7 @@ sub ghrel_check {
         error "Cannot get latest version for $repo";
     }
     if ($latest_version ne $currently_wanted_version) {
-        warning "$repo has $latest_version available, this script requires only $currently_wanted_version";
+        warning "$repo has $latest_version available, this script requires only $currently_wanted_version. Go to https://github.com/$repo/compare/$currently_wanted_version..$latest_version for a comparison.";
 	0;
     } else {
 	1;

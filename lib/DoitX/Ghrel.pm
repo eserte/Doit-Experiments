@@ -14,7 +14,7 @@ package DoitX::Ghrel;
 
 use strict;
 use warnings;
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 use File::Basename 'basename';
 
@@ -93,6 +93,9 @@ sub ghrel_check {
     }
     if ($latest_version ne $currently_wanted_version) {
         warning "$repo has $latest_version available, this script requires only $currently_wanted_version";
+	0;
+    } else {
+	1;
     }
 }
 

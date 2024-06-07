@@ -92,7 +92,12 @@ sub ghrel_check {
         error "Cannot get latest version for $repo";
     }
     if ($latest_version ne $currently_wanted_version) {
-        warning "$repo has $latest_version available, this script requires only $currently_wanted_version. Go to https://github.com/$repo/compare/$currently_wanted_version..$latest_version for a comparison.";
+	if (($latest_version =~ /^v/ && $currently_wanted_version !~ /^v/) ||
+	    ($latest_version !~ /^v/ && $currently_wanted_version =~ /^v/)) {
+	    warning qq{Inconsistent handling of leading "v" in versions for "$repo": latest version is "$latest_version", specified wanted version is "$currently_wanted_version"};
+	} else {
+	    warning "$repo has $latest_version available, this script requires only $currently_wanted_version. Go to https://github.com/$repo/compare/$currently_wanted_version..$latest_version for a comparison.";
+	}
 	0;
     } else {
 	1;

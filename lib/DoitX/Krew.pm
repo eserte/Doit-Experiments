@@ -26,12 +26,11 @@ sub functions { qw(krew_install_krew krew_install_plugin) }
 
 sub add_components { qw(lwp) }
 
+# Note: PATH must be added manually, see installation notice
 sub krew_install_krew {
-    my($d, %opts) = @_;
-    my $create_symlink = delete $opts{'create_symlink'};
-    die "Unhandled options: " . join(" ", %opts) if %opts;
+    my($d) = @_;
 
-    if ($d->which('kubectl-krew')) {
+    if (-e "$ENV{HOME}/.krew/bin/kubectl-krew") {
 	return 0;
     }
 
@@ -54,17 +53,29 @@ sub krew_install_krew {
 	$d->lwp_mirror($url, "$krew.tar.gz");
 	$d->system('tar', 'zxvf', "$krew.tar.gz");
 	$d->system("./$krew", "install", "krew");
-	_get_sudo($d)->ln_nsf("$ENV{HOME}/.krew/bin/kubectl-krew", "/usr/local/bin/kubectl-krew");
     } $dir;
 
     1;
 }
 
-sub _get_sudo {
-    my $d = shift;
-    $d->{__krew_sudo} ||= do {
-	$< == 0 ? $d: $d->do_sudo;
-    };
+sub krew_install_plugin {
+    my($d, $plugin, @rest) = @_;
+    error "Please specify plugin to install" if !$plugin;
+    error "Currently allows installation of one plugin only" if @rest;
+
+    my $list = $d->info_open3({quiet => 1}, qw(kubectl krew list));
+    for my $line (split /\n/, $list) {
+	next if $line =~ /^PLUGIN\s+VERSION/;
+	my($installed_plugin,$installed_version) = split /\s+/, $line, 2;
+	if ($plugin eq $installed_plugin) {
+	    return 0;
+	}
+    }
+
+    $d->system(qw(kubectl krew update));
+    $d->system(qw(kubectl krew install), $plugin);
+
+    1;
 }
 
 1;

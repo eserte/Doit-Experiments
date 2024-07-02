@@ -23,16 +23,16 @@ Explanation:
 
 =over
 
-=item C<#!/usr/bin/env perl>
+=item C<< #!/usr/bin/env perl >>
 
 Use the first perl in C<PATH>. Use another shebang if C<Doit> is
 installed in a different perl.
 
-=item C<# -*- perl -*->
+=item C<< # -*- perl -*- >>
 
 The C<Doit> author is an emacs user. Omit this if you don't need this.
 
-=item C<use if !$ENV{DOIT_IN_REMOTE}, lib => "$ENV{HOME}/src/Doit/lib";>
+=item C<< use if !$ENV{DOIT_IN_REMOTE}, lib => "$ENV{HOME}/src/Doit/lib"; >>
 
 C<Doit> does not have to be installed as a proper perl module. It's
 also possible to just C<git clone> it and run from the uninstalled
@@ -40,7 +40,7 @@ source (see next step). The C<DOIT_IN_REMOTE> avoids adding the
 library path in remote execution --- C<Doit> handles this itself. Omit
 this line if always an installed C<Doit> should be used.
 
-=item C<use Doit; # install from CPAN or do "git clone https://github.com/eserte/doit.git ~/src/Doit">
+=item C<< use Doit; # install from CPAN or do "git clone https://github.com/eserte/doit.git ~/src/Doit" >>
 
 Use the module, which also automatically includes the C<strict> and
 C<warnings> pragmas, so you don't have to do it yourself. The comment
@@ -48,14 +48,14 @@ says that Doit may be installed as a proper perl module using C<CPAN>
 or C<cpanm>, or just cloned to the proposed directory. This works
 nicely with the C<use ... lib> line before.
 
-=item C<return 1 if caller;>
+=item C<< return 1 if caller; >>
 
 The modulino "hack". Subroutines and variable definitions which should
 be available in different context (remote execution with
 C<do_ssh_connect> or in switched user context C<do_sudo>) need to go
 above this line. The main C<Doit> script should go below this line.
 
-=item C<my $doit = Doit->init;>
+=item C<< my $doit = Doit->init; >>
 
 Create a C<Doit> runner. Use this for calling C<Doit> commands.
 

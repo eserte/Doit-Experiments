@@ -14,7 +14,7 @@ package DoitX::Ghrel;
 
 use strict;
 use warnings;
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 use File::Basename 'basename';
 
@@ -70,6 +70,7 @@ sub ghrel_install {
         if ($extract_code) {
             $binary = $extract_code->(
                 downloaded_file => $downloaded_file,
+		name            => $name,
             );
         } else {
             $binary = $downloaded_file;

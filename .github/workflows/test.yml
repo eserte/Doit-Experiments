@@ -16,8 +16,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - config_name: ubuntu-20.04
-            os: ubuntu-20.04
           - config_name: ubuntu-22.04
             os: ubuntu-22.04
           - config_name: ubuntu-22.04 with optional dependencies
@@ -75,8 +73,8 @@ jobs:
           - image: perl:5.40.0-slim-bookworm
           ## use debian:* images only if there's no suitable perl:* image
           #- image: debian:bookworm
-          ## ubuntu:noble not enabled, need to install full perl with prove first
-          #- image: ubuntu:noble
+          ## ubuntu:focal not enabled, need to install full perl with prove first
+          #- image: ubuntu:focal
 
     steps:
       # Note: checkout@v4 does not work with older debians (e.g.stretch), so do this step *outside* the container

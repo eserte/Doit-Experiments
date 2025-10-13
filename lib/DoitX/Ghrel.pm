@@ -66,7 +66,7 @@ sub ghrel_install {
         $installed_version ne $version;
     }) {
         my $base = basename($download_url);
-        my $downloaded_file = "$ENV{HOME}/Downloads/$base";
+        my $downloaded_file = File::Spec->catfile($ENV{HOME}, 'Downloads', $base);
         $d->lwp_mirror($download_url, $downloaded_file, refresh => 'always');
         my $doer = $dest_dir ? $d : _get_sudo($d);
         my $binary;

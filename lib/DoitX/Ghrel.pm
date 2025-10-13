@@ -71,6 +71,7 @@ sub ghrel_install {
             $binary = $extract_code->(
                 downloaded_file => $downloaded_file,
 		name            => $name,
+		version         => $version,
             );
         } else {
             $binary = $downloaded_file;

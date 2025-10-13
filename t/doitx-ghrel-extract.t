@@ -1,4 +1,10 @@
 use Test::More;
+BEGIN {
+    eval "use LWP::UserAgent";
+    if ($@) {
+        plan skip_all => 'LWP::UserAgent is not installed';
+    }
+}
 use strict;
 use warnings;
 use Doit;

@@ -17,6 +17,8 @@ use warnings;
 our $VERSION = '0.003';
 
 use File::Basename 'basename';
+use File::Temp 'tempdir';
+use File::Spec;
 
 use Doit::Log;
 
@@ -41,18 +43,19 @@ sub ghrel_install {
 	    undef;
 	}
     };
+    my $dest_dir               = delete $opts{dest_dir};
     my $check_github_releases  = delete $opts{check_github_releases};
     error 'Unhandled options: ' . join(' ', %opts) if %opts;
 
     if ($check_github_releases) {
 	$d->ghrel_check($gh_repo, "v$version");
     }
-    my $path = "/usr/local/bin/$name"; # make configurable?
+    my $path = File::Spec->catfile($dest_dir || '/usr/local/bin', $name);
     my $download_url = $download_url_code->(
         name    => $name,
         version => $version,
     );
-    if ($download_url !~ m{^https?}) {
+    if ($download_url !~ m{^(?:https?|file)://}) {
         $download_url = "https://github.com/$gh_repo/releases/download/$download_url";
     }
     if (!-x $path || do {
@@ -65,9 +68,69 @@ sub ghrel_install {
         my $base = basename($download_url);
         my $downloaded_file = "$ENV{HOME}/Downloads/$base";
         $d->lwp_mirror($download_url, $downloaded_file, refresh => 'always');
-        my $sudo = _get_sudo($d);
+        my $doer = $dest_dir ? $d : _get_sudo($d);
         my $binary;
-        if ($extract_code) {
+        if (!$extract_code && $downloaded_file =~ m{\.(tar\.gz|tgz|zip)$}) {
+            my $suffix = $1;
+            my $td = tempdir("ghrel_install_XXXXXX", CLEANUP => 1);
+            if ($suffix eq 'zip') {
+                require Archive::Zip;
+                my $zip = Archive::Zip->new;
+                $zip->read($downloaded_file) == 0 or die "Error reading zip file: $!";
+                my @members = $zip->members;
+                if (@members == 1) {
+                    $binary = File::Spec->catfile($td, $members[0]->fileName);
+                    $zip->extractMember($members[0], $binary) == 0 or die "Error extracting from zip: $!";
+                } else {
+                    my $zip_dir;
+                    for my $member (@members) {
+                        if ($member->isDirectory) {
+                            if (defined $zip_dir) {
+                                die "Multiple directories in zip file";
+                            }
+                            $zip_dir = $member->fileName;
+                        }
+                    }
+                    if ($zip_dir) {
+                        $binary = File::Spec->catfile($td, $name);
+                        $zip->extractTree($zip_dir, $td) == 0 or die "Error extracting from zip: $!";
+                        my @extracted_files = glob "$td/*";
+                        # Heuristic: if there's a single directory, then the binary is probably inside
+                        if (@extracted_files == 1 && -d $extracted_files[0]) {
+                            $binary = File::Spec->catfile($extracted_files[0], $name);
+                        } else {
+                            $binary = File::Spec->catfile($td, $name);
+                        }
+                    } else {
+                        $binary = File::Spec->catfile($td, $name);
+                        $zip->extractTree('', $td) == 0 or die "Error extracting from zip: $!";
+                    }
+                    if (!-e $binary) {
+                        die "Could not find '$name' in zip file";
+                    }
+                }
+            } else { # tar.gz, tgz
+                require Archive::Tar;
+                my $tar = Archive::Tar->new;
+                $tar->read($downloaded_file, 1) or die "Error reading tar file: $!";
+                my @members = $tar->list_files;
+                if (@members == 1) {
+                    $binary = File::Spec->catfile($td, $members[0]);
+                    $tar->extract_file($members[0], $binary) or die "Error extracting from tar: $!";
+                } else {
+                    my($tar_dir) = $members[0] =~ m{^([^/]+/)};
+                    if ($tar_dir && (scalar(grep { $_ =~ m{^\Q$tar_dir\E} } @members) == @members)) {
+                        $binary = File::Spec->catfile($td, $tar_dir, $name);
+                    } else {
+                        $binary = File::Spec->catfile($td, $name);
+                    }
+                    $tar->extract($td) or die "Error extracting from tar: $!";
+                    if (!-e $binary) {
+                        die "Could not find '$name' in tar file";
+                    }
+                }
+            }
+        } elsif ($extract_code) {
             $binary = $extract_code->(
                 downloaded_file => $downloaded_file,
 		name            => $name,
@@ -76,8 +139,8 @@ sub ghrel_install {
         } else {
             $binary = $downloaded_file;
         }
-        $sudo->copy("$binary", $path); # $binary could be a File::Temp object, force it into a filename
-        $sudo->chmod(0755, $path);
+        $doer->copy("$binary", $path); # $binary could be a File::Temp object, force it into a filename
+        $doer->chmod(0755, $path);
         1;
     } else {
         0;

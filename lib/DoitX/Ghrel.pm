@@ -75,8 +75,9 @@ sub ghrel_install {
             my $td = tempdir("ghrel_install_XXXXXX", CLEANUP => 1);
             if ($suffix eq 'zip') {
                 require Archive::Zip;
+                open my $fh, '<:raw', $downloaded_file or die "Cannot open $downloaded_file: $!";
                 my $zip = Archive::Zip->new;
-                $zip->read($downloaded_file) == 0 or die "Error reading zip file: $!";
+                $zip->readFromFileHandle($fh) == 0 or die "Error reading zip file: $!";
                 my @members = $zip->members;
                 if (@members == 1) {
                     $binary = File::Spec->catfile($td, $members[0]->fileName);
@@ -109,10 +110,13 @@ sub ghrel_install {
                         die "Could not find '$name' in zip file";
                     }
                 }
+                close $fh;
             } else { # tar.gz, tgz
                 require Archive::Tar;
                 my $tar = Archive::Tar->new;
-                $tar->read($downloaded_file, 1) or die "Error reading tar file: $!";
+                open my $fh, '<:raw', $downloaded_file or die "Cannot open $downloaded_file: $!";
+                $tar->read($fh, 1) or die "Error reading tar file: $!";
+                close $fh;
                 my @members = $tar->list_files;
                 if (@members == 1) {
                     $binary = File::Spec->catfile($td, $members[0]);

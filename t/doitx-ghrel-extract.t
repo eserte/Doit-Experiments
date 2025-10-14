@@ -47,6 +47,28 @@ if ($has_archive_tar) {
     rename $dummy_binary_in_dir_path, $dummy_binary_path; # move it back
 }
 
+my ($tar_xz_path, $tar_xz_with_dir_path);
+my $has_io_compress_xz = eval { require IO::Compress::Xz; 1 };
+
+if ($has_io_compress_xz) {
+    # Create a tar.xz archive
+    $tar_xz_path = File::Spec->catfile($tempdir, 'my-app.tar.xz');
+    my $tar = Archive::Tar->new;
+    $tar->add_files($dummy_binary_path);
+    $tar->write($tar_xz_path, 2);
+
+    # Create a tar.xz archive with a top-level directory
+    $tar_xz_with_dir_path = File::Spec->catfile($tempdir, 'my-app-with-dir.tar.xz');
+    my $tar_with_dir = Archive::Tar->new;
+    my $dummy_binary_in_dir_name = File::Spec->catfile('my-app-1.0.0', $dummy_binary_name);
+    my $dummy_binary_in_dir_path = File::Spec->catfile($tempdir, $dummy_binary_in_dir_name);
+    mkdir File::Spec->catfile($tempdir, 'my-app-1.0.0');
+    rename $dummy_binary_path, $dummy_binary_in_dir_path;
+    $tar_with_dir->add_files($dummy_binary_in_dir_path);
+    $tar_with_dir->write($tar_xz_with_dir_path, 2);
+    rename $dummy_binary_in_dir_path, $dummy_binary_path;
+}
+
 my ($zip_path, $zip_with_dir_path);
 my $has_archive_zip = eval { require Archive::Zip; 1 };
 
@@ -122,6 +144,40 @@ subtest 'zip extraction' => sub {
 subtest 'zip with top-level directory extraction' => sub {
     plan skip_all => "Archive::Zip not installed" unless $has_archive_zip;
     my $download_url = "file://$zip_with_dir_path";
+    $d->ghrel_install(
+        name => 'my-app',
+        gh_repo => 'user/repo',
+        version => '1.0.0',
+        download_url_code => sub { $download_url },
+        dest_dir => $dest_dir,
+    );
+    my $installed_path = File::Spec->catfile($dest_dir, 'my-app');
+    ok -x $installed_path, "Binary is installed and executable";
+    my $output = qx{$installed_path};
+    is $output, 'version v1.0.0', 'Correct version is installed';
+    unlink $installed_path;
+};
+
+subtest 'tar.xz extraction' => sub {
+    plan skip_all => "IO::Compress::Xz not installed" unless $has_io_compress_xz;
+    my $download_url = "file://$tar_xz_path";
+    $d->ghrel_install(
+        name => 'my-app',
+        gh_repo => 'user/repo',
+        version => '1.0.0',
+        download_url_code => sub { $download_url },
+        dest_dir => $dest_dir,
+    );
+    my $installed_path = File::Spec->catfile($dest_dir, 'my-app');
+    ok -x $installed_path, "Binary is installed and executable";
+    my $output = qx{$installed_path};
+    is $output, 'version v1.0.0', 'Correct version is installed';
+    unlink $installed_path;
+};
+
+subtest 'tar.xz with top-level directory extraction' => sub {
+    plan skip_all => "IO::Compress::Xz not installed" unless $has_io_compress_xz;
+    my $download_url = "file://$tar_xz_with_dir_path";
     $d->ghrel_install(
         name => 'my-app',
         gh_repo => 'user/repo',

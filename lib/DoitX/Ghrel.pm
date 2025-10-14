@@ -14,10 +14,10 @@ package DoitX::Ghrel;
 
 use strict;
 use warnings;
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 use File::Basename 'basename';
-use File::Temp 'tempdir';
+use File::Temp qw(tempdir tempfile);
 use File::Spec;
 
 use Doit::Log;
@@ -70,7 +70,7 @@ sub ghrel_install {
         $d->lwp_mirror($download_url, $downloaded_file, refresh => 'always');
         my $doer = $dest_dir ? $d : _get_sudo($d);
         my $binary;
-        if (!$extract_code && $downloaded_file =~ m{\.(tar\.gz|tgz|zip)$}) {
+        if (!$extract_code && $downloaded_file =~ m{\.(tar\.gz|tgz|tar\.xz|zip)$}) {
             my $suffix = $1;
             my $td = tempdir("ghrel_install_XXXXXX", CLEANUP => 1);
             if ($suffix eq 'zip') {
@@ -111,25 +111,37 @@ sub ghrel_install {
                     }
                 }
                 close $fh;
-            } else { # tar.gz, tgz
+            } else { # tar.gz, tgz, tar.xz
                 require Archive::Tar;
                 my $tar = Archive::Tar->new;
-                open my $fh, '<:raw', $downloaded_file or die "Cannot open $downloaded_file: $!";
-                $tar->read($fh, 1) or die "Error reading tar file: $!";
-                close $fh;
+                my $tar_file = $downloaded_file;
+                if ($suffix eq 'tar.xz') {
+                    require IO::Uncompress::UnXz;
+                    my $unxz = IO::Uncompress::UnXz->new($downloaded_file)
+                        or die "Cannot open $downloaded_file with IO::Uncompress::UnXz: $!";
+                    my ($tmp_tar_fh, $tmp_tar_filename) = tempfile();
+                    my $buffer;
+                    while (my $len = $unxz->read($buffer, 4096)) {
+                        print $tmp_tar_fh $buffer;
+                    }
+                    $unxz->close;
+                    close $tmp_tar_fh;
+                    $tar_file = $tmp_tar_filename;
+                }
+                $tar->read($tar_file, 1) or die "Error reading tar file: $!";
                 my @members = $tar->list_files;
                 if (@members == 1) {
                     $binary = File::Spec->catfile($td, $members[0]);
                     $tar->extract_file($members[0], $binary) or die "Error extracting from tar: $!";
                 } else {
-                    my($tar_dir) = $members[0] =~ m{^([^/]+/)};
-                    if ($tar_dir && (scalar(grep { $_ =~ m{^\Q$tar_dir\E} } @members) == @members)) {
-                        $binary = File::Spec->catfile($td, $tar_dir, $name);
-                    } else {
-                        $binary = File::Spec->catfile($td, $name);
-                    }
                     $tar->extract($td) or die "Error extracting from tar: $!";
-                    if (!-e $binary) {
+                    require File::Find;
+                    File::Find::find(sub {
+                        if ($_ eq $name && -f $_ && -x _) {
+                            $binary = $File::Find::name;
+                        }
+                    }, $td);
+                    if (!$binary) {
                         die "Could not find '$name' in tar file";
                     }
                 }

@@ -3,7 +3,7 @@
 #
 # Author: Slaven Rezic
 #
-# Copyright (C) 2024 Slaven Rezic. All rights reserved.
+# Copyright (C) 2024,2026 Slaven Rezic. All rights reserved.
 # This package is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 #
@@ -14,7 +14,7 @@ package DoitX::Ghrel;
 
 use strict;
 use warnings;
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 use File::Basename 'basename';
 use File::Temp qw(tempdir tempfile);

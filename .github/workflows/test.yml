@@ -49,6 +49,15 @@ jobs:
           dnf update --quiet -y && dnf install --quiet -y perl
         if: startsWith(matrix.image, 'fedora:')
       - uses: eserte/Doit/.github/actions/install-doit-from-github@master
+
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libfile-chmod-perl
+        if: ${{ matrix.install_optional_dependencies && startsWith(matrix.os, 'ubuntu-') }}
+      - run: |
+          cpanm --quiet --notest File::chmod
+        if: ${{ matrix.install_optional_dependencies && startsWith(matrix.os, 'windows-') }}
+        
       - name: Test
         run: |
           prove -l -j8 t

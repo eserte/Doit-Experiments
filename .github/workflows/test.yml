@@ -35,7 +35,7 @@ jobs:
             dist_install_and_test: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           clean: false
           show-progress: false
@@ -89,7 +89,7 @@ jobs:
 
     steps:
       # Note: checkout@v4 does not work with older debians (e.g.stretch), so do this step *outside* the container
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: eserte/Doit/.github/actions/install-doit-from-github@master
       - name: Test
         run: |

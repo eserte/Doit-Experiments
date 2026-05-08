@@ -45,3 +45,31 @@ sub lschmod  { _anychmod('lschmod',  @_) }
 1;
 
 __END__
+
+=head1 NAME
+
+DoitX::Chmod - provide symbolic and ls chmod modes
+
+=head1 SYNOPSIS
+
+    use lib "/path/to/Doit-Experiments/lib";
+    ...
+    $doit->add_component('DoitX::Chmod');
+    ...
+    $doit->symchmod('+x', '/path/to/executable-file1', '/path/to/executable-file2', ...);
+    $doit->lschmod("-rwxr-xr-x", '/path/to/executable-file1', '/path/to/executable-file2', ...);
+
+=head1 DESCRIPTION
+
+This Doit extension provides two commands which change file modes
+using symbolic (e.g. '+x') or ls-styled (e.g. '-rwxr-xr-x')
+specifications. The underlying implementation is done using the CPAN
+module L<File::chmod>. The commands return the number of changed files.
+
+=head1 SEE ALSO
+
+L<File::chmod>, L<perlfunc/chmod>, L<chmod(1)>, L<ls(1)>.
+
+=cut
+
+

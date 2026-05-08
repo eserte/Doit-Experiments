@@ -8,15 +8,19 @@ Various experimental Doit extensions. The rules:
 
 Usage: just git-clone this repository somewhere:
 
+```sh
     cd ~/src
 	git clone https://github.com/eserte/Doit-Experiments.git
+```
 
 and use it in your Doit-using script:
 
-    use lib "$ENV{HOME}/src/Doit-Experiments"; # mkdir -p ~/src && git clone https://github.com/eserte/Doit-Experiments ~/src/Doit-Experiments
+```perl
+    use lib "$ENV{HOME}/src/Doit-Experiments/lib"; # mkdir -p ~/src && git clone https://github.com/eserte/Doit-Experiments ~/src/Doit-Experiments
     use Doit;
 	...
 	my $doit = Doit->init;
 	$doit->add_component('DoitX::Chmod');
     ...
 	$doit->symchmod('+x', '/path/to/some/executable-file');
+```

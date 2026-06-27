@@ -14,7 +14,7 @@ package DoitX::Flatpak;
 
 use strict;
 use warnings;
-our $VERSION = '0.002';
+our $VERSION = '0.007';
 
 use Doit::Log;
 
@@ -31,6 +31,7 @@ sub flatpak_install {
     } elsif (@_ == 2) {
         if (ref $_[1] eq 'HASH') {
             ($package_or_file, $opts) = @_;
+            $remote = $opts->{remote};
         } else {
             ($remote, $package_or_file) = @_;
         }
@@ -45,9 +46,12 @@ sub flatpak_install {
     if ($package_or_file =~ /\.flatpak$/ && -f $package_or_file) {
         # Try to get the application ID from the bundle file
         $id = eval {
-            local $SIG{CHLD} = 'DEFAULT';
             my $info = $d->info_qx({quiet => 1}, 'flatpak', 'info', '--columns=application', $package_or_file);
-            chomp $info;
+            if (defined $info) {
+                chomp $info;
+                $info =~ s/^\s+//;
+                $info =~ s/\s+$//;
+            }
             $info;
         };
     } else {
@@ -59,16 +63,15 @@ sub flatpak_install {
         ensure => sub {
             return 0 if !$id; # Can't check if we don't know the ID
             my $list = eval {
-                local $SIG{CHLD} = 'DEFAULT';
-                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin');
+                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin', '--no-headings');
             };
-            return 0 if $@;
+            return 0 if $@ || !defined $list;
             my @lines = split /\n/, $list;
             for my $line (@lines) {
-                my($inst_id, $origin) = split /\s+/, $line;
-                if ($inst_id eq $id) {
+                my($inst_id, $origin) = split ' ', $line;
+                if (defined $inst_id && $inst_id eq $id) {
                     if ($remote) {
-                        return 1 if $origin eq $remote;
+                        return 1 if defined $origin && $origin eq $remote;
                         return 0; # Different origin, need to reinstall/update
                     }
                     return 1;
@@ -97,6 +100,7 @@ sub flatpak_uninstall {
     } elsif (@_ == 2) {
         if (ref $_[1] eq 'HASH') {
             ($id, $opts) = @_;
+            $remote = $opts->{remote};
         } else {
             ($remote, $id) = @_;
         }
@@ -111,12 +115,21 @@ sub flatpak_uninstall {
         "uninstall flatpak $id" . ($remote ? " from $remote" : ""),
         ensure => sub {
             my $list = eval {
-                local $SIG{CHLD} = 'DEFAULT';
-                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application');
+                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin', '--no-headings');
             };
-            return 1 if $@; # Assume uninstalled if flatpak fails (e.g. not present)
-            my @installed_ids = split /\n/, $list;
-            return (grep { $_ eq $id } @installed_ids) ? 0 : 1;
+            return 1 if $@ || !defined $list; # Assume uninstalled if flatpak fails
+            my @lines = split /\n/, $list;
+            for my $line (@lines) {
+                my($inst_id, $origin) = split ' ', $line;
+                if (defined $inst_id && $inst_id eq $id) {
+                    if ($remote) {
+                        return 0 if defined $origin && $origin eq $remote;
+                        next; # Different remote, ignore this entry for "ensure uninstalled"
+                    }
+                    return 0; # Found, so not uninstalled
+                }
+            }
+            return 1;
         },
         using => sub {
             my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y');

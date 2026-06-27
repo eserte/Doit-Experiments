@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More;
+use Test::More 'no_plan';
 use Doit;
 
 # Use the hack to correctly set dry-run mode
@@ -17,7 +17,6 @@ ok defined($d->can('flatpak_uninstall')), 'flatpak_uninstall imported';
 # Skip further tests if flatpak is not available
 if (!$d->which('flatpak')) {
     diag "flatpak binary not found, skipping callable tests";
-    done_testing();
     exit;
 }
 
@@ -43,5 +42,3 @@ eval { $d->flatpak_uninstall('flathub', 'org.gimp.GIMP') };
 ok !$@, 'flatpak_uninstall($remote, $id) callable' or diag $@;
 
 pass 'Basic registration and syntax check complete';
-
-done_testing();

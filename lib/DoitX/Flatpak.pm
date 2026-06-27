@@ -14,7 +14,7 @@ package DoitX::Flatpak;
 
 use strict;
 use warnings;
-our $VERSION = '0.007';
+our $VERSION = '0.01';
 
 use Doit::Log;
 
@@ -67,12 +67,13 @@ sub flatpak_install {
             };
             return 0 if $@ || !defined $list;
             my @lines = split /\n/, $list;
-            for my $line (@lines) {
+            for my $i (0 .. $#lines) {
+                my $line = $lines[$i];
                 my($inst_id, $origin) = split ' ', $line;
                 if (defined $inst_id && $inst_id eq $id) {
                     if ($remote) {
                         return 1 if defined $origin && $origin eq $remote;
-                        return 0; # Different origin, need to reinstall/update
+                        next;
                     }
                     return 1;
                 }
@@ -117,27 +118,23 @@ sub flatpak_uninstall {
             my $list = eval {
                 $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin', '--no-headings');
             };
-            return 1 if $@ || !defined $list; # Assume uninstalled if flatpak fails
+            return 1 if $@ || !defined $list;
             my @lines = split /\n/, $list;
-            for my $line (@lines) {
+            for my $i (0 .. $#lines) {
+                my $line = $lines[$i];
                 my($inst_id, $origin) = split ' ', $line;
                 if (defined $inst_id && $inst_id eq $id) {
                     if ($remote) {
                         return 0 if defined $origin && $origin eq $remote;
-                        next; # Different remote, ignore this entry for "ensure uninstalled"
+                        next;
                     }
-                    return 0; # Found, so not uninstalled
+                    return 0;
                 }
             }
             return 1;
         },
         using => sub {
-            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y');
-            if ($remote) {
-                push @cmd, "$remote:$id";
-            } else {
-                push @cmd, $id;
-            }
+            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y', $id);
             if ($is_user) {
                 $d->system(@cmd);
             } else {

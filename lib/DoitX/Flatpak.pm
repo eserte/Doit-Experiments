@@ -14,12 +14,12 @@ package DoitX::Flatpak;
 
 use strict;
 use warnings;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Doit::Log;
 
 sub new { bless {}, shift }
-sub functions { qw(flatpak_install flatpak_uninstall) }
+sub functions { qw(flatpak_install flatpak_uninstall flatpak_remote_add) }
 
 sub add_components { qw(guarded) }
 
@@ -140,6 +140,37 @@ sub flatpak_uninstall {
             } else {
                 push @cmd, $id;
             }
+            if ($is_user) {
+                $d->system(@cmd);
+            } else {
+                _get_sudo($d)->system(@cmd);
+            }
+        }
+    );
+}
+
+sub flatpak_remote_add {
+    my ($d, $name, $location, $opts) = @_;
+    $opts = {} if !defined $opts;
+    my $is_user = $opts->{user};
+    my $scope_arg = $is_user ? '--user' : '--system';
+
+    $d->guarded_step(
+        "add flatpak remote $name",
+        ensure => sub {
+            my $remotes = eval {
+                $d->info_qx({quiet => 1}, 'flatpak', 'remotes', $scope_arg, '--columns=name', '--no-headings');
+            };
+            return 0 if $@ || !defined $remotes;
+            my @names = split /\n/, $remotes;
+            for my $n (@names) {
+                $n =~ s/^\s+//; $n =~ s/\s+$//;
+                return 1 if $n eq $name;
+            }
+            return 0;
+        },
+        using => sub {
+            my @cmd = ('flatpak', 'remote-add', $scope_arg, '--if-not-exists', $name, $location);
             if ($is_user) {
                 $d->system(@cmd);
             } else {

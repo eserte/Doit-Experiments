@@ -16,36 +16,35 @@ ok defined($d->can('flatpak_uninstall')), 'flatpak_uninstall imported';
 ok defined($d->can('flatpak_remote_add')), 'flatpak_remote_add imported';
 
 # Skip further tests if flatpak is not available
-if (!$d->which('flatpak')) {
+if ($d->which('flatpak')) {
+    # Syntax checks for various call signatures
+    # Since we are in dry-run mode and we use eval, these should not
+    # try to change the system state even if ensure returns 0.
+    eval { $d->flatpak_install('org.gimp.GIMP') };
+    ok !$@, 'flatpak_install($id) callable' or diag $@;
+
+    eval { $d->flatpak_install('org.gimp.GIMP', { user => 1 }) };
+    ok !$@, 'flatpak_install($id, \%opts) callable' or diag $@;
+
+    eval { $d->flatpak_install('flathub', 'org.gimp.GIMP') };
+    ok !$@, 'flatpak_install($remote, $id) callable' or diag $@;
+
+    eval { $d->flatpak_install('flathub', 'org.gimp.GIMP', { user => 1 }) };
+    ok !$@, 'flatpak_install($remote, $id, \%opts) callable' or diag $@;
+
+    eval { $d->flatpak_uninstall('org.gimp.GIMP') };
+    ok !$@, 'flatpak_uninstall($id) callable' or diag $@;
+
+    eval { $d->flatpak_uninstall('flathub', 'org.gimp.GIMP') };
+    ok !$@, 'flatpak_uninstall($remote, $id) callable' or diag $@;
+
+    eval { $d->flatpak_remote_add('flathub', 'https://flathub.org/repo/flathub.flatpakrepo') };
+    ok !$@, 'flatpak_remote_add($name, $url) callable' or diag $@;
+
+    eval { $d->flatpak_remote_add('flathub', 'https://flathub.org/repo/flathub.flatpakrepo', { user => 1 }) };
+    ok !$@, 'flatpak_remote_add($name, $url, \%opts) callable' or diag $@;
+} else {
     diag "flatpak binary not found, skipping callable tests";
-    exit;
 }
-
-# Syntax checks for various call signatures
-# Since we are in dry-run mode and we use eval, these should not
-# try to change the system state even if ensure returns 0.
-eval { $d->flatpak_install('org.gimp.GIMP') };
-ok !$@, 'flatpak_install($id) callable' or diag $@;
-
-eval { $d->flatpak_install('org.gimp.GIMP', { user => 1 }) };
-ok !$@, 'flatpak_install($id, \%opts) callable' or diag $@;
-
-eval { $d->flatpak_install('flathub', 'org.gimp.GIMP') };
-ok !$@, 'flatpak_install($remote, $id) callable' or diag $@;
-
-eval { $d->flatpak_install('flathub', 'org.gimp.GIMP', { user => 1 }) };
-ok !$@, 'flatpak_install($remote, $id, \%opts) callable' or diag $@;
-
-eval { $d->flatpak_uninstall('org.gimp.GIMP') };
-ok !$@, 'flatpak_uninstall($id) callable' or diag $@;
-
-eval { $d->flatpak_uninstall('flathub', 'org.gimp.GIMP') };
-ok !$@, 'flatpak_uninstall($remote, $id) callable' or diag $@;
-
-eval { $d->flatpak_remote_add('flathub', 'https://flathub.org/repo/flathub.flatpakrepo') };
-ok !$@, 'flatpak_remote_add($name, $url) callable' or diag $@;
-
-eval { $d->flatpak_remote_add('flathub', 'https://flathub.org/repo/flathub.flatpakrepo', { user => 1 }) };
-ok !$@, 'flatpak_remote_add($name, $url, \%opts) callable' or diag $@;
 
 pass 'Basic registration and syntax check complete';

@@ -14,7 +14,7 @@ package DoitX::Flatpak;
 
 use strict;
 use warnings;
-our $VERSION = '0.03';
+our $VERSION = '0.02';
 
 use Doit::Log;
 
@@ -31,7 +31,6 @@ sub flatpak_install {
     } elsif (@_ == 2) {
         if (ref $_[1] eq 'HASH') {
             ($package_or_file, $opts) = @_;
-            $remote = $opts->{remote};
         } else {
             ($remote, $package_or_file) = @_;
         }
@@ -43,7 +42,7 @@ sub flatpak_install {
     my $scope_arg = $is_user ? '--user' : '--system';
 
     my $id;
-    if ($package_or_file =~ /\.flatpak$/ && -f $package_or_file) {
+    if (defined $package_or_file && $package_or_file =~ /\.flatpak$/ && -f $package_or_file) {
         # Try to get the application ID from the bundle file
         $id = eval {
             my $info = $d->info_qx({quiet => 1}, 'flatpak', 'info', '--columns=application', $package_or_file);
@@ -59,7 +58,7 @@ sub flatpak_install {
     }
 
     $d->guarded_step(
-        "install flatpak " . ($id || $package_or_file) . ($remote ? " from $remote" : ""),
+        "install flatpak " . (defined $id ? $id : (defined $package_or_file ? $package_or_file : "")) . (defined $remote && $remote ne '' ? " from $remote" : ""),
         ensure => sub {
             return 0 if !defined $id || $id eq ''; # Can't check if we don't know the ID
             my $list = eval {
@@ -67,11 +66,10 @@ sub flatpak_install {
             };
             return 0 if $@ || !defined $list;
             my @lines = split /\n/, $list;
-            for my $i (0 .. $#lines) {
-                my $line = $lines[$i];
+            for my $line (@lines) {
                 my($inst_id, $origin) = split ' ', $line;
                 if (defined $inst_id && $inst_id eq $id) {
-                    if ($remote) {
+                    if (defined $remote && $remote ne '') {
                         return 1 if defined $origin && $origin eq $remote;
                         next;
                     }
@@ -84,11 +82,7 @@ sub flatpak_install {
             my @cmd = ('flatpak', 'install', $scope_arg, '--noninteractive', '-y');
             push @cmd, $remote if defined $remote && $remote ne '';
             push @cmd, $package_or_file;
-            if ($is_user) {
-                $d->system(@cmd);
-            } else {
-                _get_sudo($d)->system(@cmd);
-            }
+            _get_sudo($d, $is_user)->system(@cmd);
         }
     );
 }
@@ -101,7 +95,6 @@ sub flatpak_uninstall {
     } elsif (@_ == 2) {
         if (ref $_[1] eq 'HASH') {
             ($id, $opts) = @_;
-            $remote = $opts->{remote};
         } else {
             ($remote, $id) = @_;
         }
@@ -113,18 +106,17 @@ sub flatpak_uninstall {
     my $scope_arg = $is_user ? '--user' : '--system';
 
     $d->guarded_step(
-        "uninstall flatpak $id" . ($remote ? " from $remote" : ""),
+        "uninstall flatpak $id" . (defined $remote && $remote ne '' ? " from $remote" : ""),
         ensure => sub {
             my $list = eval {
                 $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin', '--no-headings');
             };
             return 1 if $@ || !defined $list;
             my @lines = split /\n/, $list;
-            for my $i (0 .. $#lines) {
-                my $line = $lines[$i];
+            for my $line (@lines) {
                 my($inst_id, $origin) = split ' ', $line;
                 if (defined $inst_id && $inst_id eq $id) {
-                    if ($remote) {
+                    if (defined $remote && $remote ne '') {
                         return 0 if defined $origin && $origin eq $remote;
                         next;
                     }
@@ -134,17 +126,9 @@ sub flatpak_uninstall {
             return 1;
         },
         using => sub {
-            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y');
-            if (defined $remote && $remote ne '') {
-                push @cmd, "$remote:$id";
-            } else {
-                push @cmd, $id;
-            }
-            if ($is_user) {
-                $d->system(@cmd);
-            } else {
-                _get_sudo($d)->system(@cmd);
-            }
+            my $ref = (defined $remote && $remote ne '') ? "$remote:$id" : $id;
+            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y', $ref);
+            _get_sudo($d, $is_user)->system(@cmd);
         }
     );
 }
@@ -171,17 +155,14 @@ sub flatpak_remote_add {
         },
         using => sub {
             my @cmd = ('flatpak', 'remote-add', $scope_arg, '--if-not-exists', $name, $location);
-            if ($is_user) {
-                $d->system(@cmd);
-            } else {
-                _get_sudo($d)->system(@cmd);
-            }
+            _get_sudo($d, $is_user)->system(@cmd);
         }
     );
 }
 
 sub _get_sudo {
-    my $d = shift;
+    my($d, $is_user) = @_;
+    return $d if $is_user;
     if (!defined $d->{__flatpak_sudo}) {
         $d->{__flatpak_sudo} = ($< == 0 ? $d : $d->do_sudo);
     }

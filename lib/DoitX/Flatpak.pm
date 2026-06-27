@@ -25,7 +25,7 @@ sub add_components { qw(guarded) }
 
 sub flatpak_install {
     my($d, $package_or_file, $opts) = @_;
-    $opts //= {};
+    $opts ||= {};
     my $is_user = $opts->{user};
     my $scope_arg = $is_user ? '--user' : '--system';
 
@@ -63,7 +63,7 @@ sub flatpak_install {
 
 sub flatpak_uninstall {
     my($d, $id, $opts) = @_;
-    $opts //= {};
+    $opts ||= {};
     my $is_user = $opts->{user};
     my $scope_arg = $is_user ? '--user' : '--system';
 

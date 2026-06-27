@@ -14,7 +14,7 @@ package DoitX::Flatpak;
 
 use strict;
 use warnings;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Doit::Log;
 
@@ -38,7 +38,7 @@ sub flatpak_install {
     } else {
         ($package_or_file) = @_;
     }
-    $opts ||= {};
+    $opts = {} if !defined $opts;
     my $is_user = $opts->{user};
     my $scope_arg = $is_user ? '--user' : '--system';
 
@@ -61,7 +61,7 @@ sub flatpak_install {
     $d->guarded_step(
         "install flatpak " . ($id || $package_or_file) . ($remote ? " from $remote" : ""),
         ensure => sub {
-            return 0 if !$id; # Can't check if we don't know the ID
+            return 0 if !defined $id || $id eq ''; # Can't check if we don't know the ID
             my $list = eval {
                 $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin', '--no-headings');
             };
@@ -82,7 +82,7 @@ sub flatpak_install {
         },
         using => sub {
             my @cmd = ('flatpak', 'install', $scope_arg, '--noninteractive', '-y');
-            push @cmd, $remote if $remote;
+            push @cmd, $remote if defined $remote && $remote ne '';
             push @cmd, $package_or_file;
             if ($is_user) {
                 $d->system(@cmd);
@@ -108,7 +108,7 @@ sub flatpak_uninstall {
     } else {
         ($id) = @_;
     }
-    $opts ||= {};
+    $opts = {} if !defined $opts;
     my $is_user = $opts->{user};
     my $scope_arg = $is_user ? '--user' : '--system';
 
@@ -134,7 +134,12 @@ sub flatpak_uninstall {
             return 1;
         },
         using => sub {
-            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y', $id);
+            my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y');
+            if (defined $remote && $remote ne '') {
+                push @cmd, "$remote:$id";
+            } else {
+                push @cmd, $id;
+            }
             if ($is_user) {
                 $d->system(@cmd);
             } else {
@@ -146,9 +151,10 @@ sub flatpak_uninstall {
 
 sub _get_sudo {
     my $d = shift;
-    $d->{__flatpak_sudo} ||= do {
-        $< == 0 ? $d : $d->do_sudo;
-    };
+    if (!defined $d->{__flatpak_sudo}) {
+        $d->{__flatpak_sudo} = ($< == 0 ? $d : $d->do_sudo);
+    }
+    return $d->{__flatpak_sudo};
 }
 
 1;

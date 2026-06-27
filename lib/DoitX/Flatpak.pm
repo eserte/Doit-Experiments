@@ -60,11 +60,21 @@ sub flatpak_install {
             return 0 if !$id; # Can't check if we don't know the ID
             my $list = eval {
                 local $SIG{CHLD} = 'DEFAULT';
-                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application');
+                $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application,origin');
             };
             return 0 if $@;
-            my @installed_ids = split /\n/, $list;
-            return (grep { $_ eq $id } @installed_ids) ? 1 : 0;
+            my @lines = split /\n/, $list;
+            for my $line (@lines) {
+                my($inst_id, $origin) = split /\s+/, $line;
+                if ($inst_id eq $id) {
+                    if ($remote) {
+                        return 1 if $origin eq $remote;
+                        return 0; # Different origin, need to reinstall/update
+                    }
+                    return 1;
+                }
+            }
+            return 0;
         },
         using => sub {
             my @cmd = ('flatpak', 'install', $scope_arg, '--noninteractive', '-y');
@@ -104,13 +114,17 @@ sub flatpak_uninstall {
                 local $SIG{CHLD} = 'DEFAULT';
                 $d->info_qx({quiet => 1}, 'flatpak', 'list', $scope_arg, '--columns=application');
             };
-            return 1 if $@;
+            return 1 if $@; # Assume uninstalled if flatpak fails (e.g. not present)
             my @installed_ids = split /\n/, $list;
             return (grep { $_ eq $id } @installed_ids) ? 0 : 1;
         },
         using => sub {
             my @cmd = ('flatpak', 'uninstall', $scope_arg, '--noninteractive', '-y');
-            push @cmd, $id;
+            if ($remote) {
+                push @cmd, "$remote:$id";
+            } else {
+                push @cmd, $id;
+            }
             if ($is_user) {
                 $d->system(@cmd);
             } else {
